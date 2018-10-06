@@ -176,6 +176,7 @@
             </tbody>
     </table>
     <table id="excelDataTable"> </table>
+    <br>
     <table id="excelDataTable2"> </table>
 
     <script>
@@ -194,8 +195,11 @@
       var superHeroes = JSON.parse(superHeroesText);
       populateHeader(superHeroes);
       showReports(superHeroes);
-      // $(document).ready(function() {$('#example').DataTable();} );
       buildHtmlTable();
+
+      // $(document).ready(function() {$('#example').DataTable();} );
+      $(document).ready(function() {$('#excelDataTable2').DataTable();} );
+
 
     }
 
@@ -210,8 +214,37 @@
 
     }
 
+    function getAllVuls(analyzers_reports) {
+      var vuls = [];
+      
+      // 2 reports total, oyenta and mythril
+      for(var i = 0; i < analyzers_reports.length; i++) {
+        var analyzer = analyzers_reports[i].analyzer;
+        var allVulnerabilities = analyzer.vulnerabilities_checked; 
+
+        for(var j = 0; j < allVulnerabilities.length; j++) {
+          vuls.push(allVulnerabilities[j]);
+        }
+      }
+      return Array.from(new Set(vuls));
+    }
+
+    function getReportNames(analyzers_reports) {
+      var names = [];
+      for(var i = 0; i < analyzers_reports.length; i++) {
+        var name = analyzers_reports[i].analyzer.name;
+        names.push(name);
+      }
+      return names;
+    }
+
     function showReports(jsonObj) {
       var analyzers_reports = jsonObj['analyzers_reports'];
+
+      var allVuls = getAllVuls(analyzers_reports)
+      console.log(allVuls)
+
+      var reportNames = getReportNames(analyzers_reports)
 
       for(var i = 0; i < analyzers_reports.length; i++) {
         //create container elements based on style.css styles
@@ -222,38 +255,39 @@
         var myPara3 = document.createElement('p');
         var myList = document.createElement('ul');
 
-        var analyzer = analyzers_reports[i].analyzer
+        var analyzer = analyzers_reports[i].analyzer;
 
         myH2.textContent = analyzer.name;
         myPara1.textContent = 'Se8cret identity: ' + analyzer.status;
         myPara2.textContent = 'Status: ' + analyzers_reports[i].status;
         myPara3.textContent = 'Superpowers:';
 
-        var allVulnerabilities = analyzer.vulnerabilities_checked; // is an array
+        var allVulnerabilities = analyzer.vulnerabilities_checked; 
 
-        var vulSet = new Set();
         for(var j = 0; j < allVulnerabilities.length; j++) {
-          vulSet.add(allVulnerabilities[j]);
           var listItem = document.createElement('li');
           listItem.textContent = allVulnerabilities[j];
           myList.appendChild(listItem);
         }
-        var vulArr = Array.from(vulSet);
 
         // adds column names
         var headerTr$ = $('<tr/>');
+        headerTr$.append($('<th/>').html("vulnerability"));
  
-        for (var i = 0 ; i < vulSet.size ; i++) {
-          headerTr$.append($('<th/>').html(vulArr[i]));
+        for (var i = 0 ; i < reportNames.length ; i++) {
+          headerTr$.append($('<th/>').html(reportNames[i]));
         }
         $("#excelDataTable2").append(headerTr$);
 
        //adds empty cells to table  
-        for (var i = 0 ; i < 5 ; i++) {
+        for (var i = 0 ; i < allVuls.length; i++) {
            var row$ = $('<tr/>');
-           for (var colIndex = 0 ; colIndex < 2 ; colIndex++) {
-   
-               cellValue = "abc"; 
+           for (var colIndex = 0 ; colIndex < reportNames.length+1 ; colIndex++) {
+               if (colIndex == 0) {
+                 cellValue = allVuls[i]; 
+               } else {
+                 cellValue = "Success!";
+               } 
    
                row$.append($('<td/>').html(cellValue));
            }
