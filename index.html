@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+
+    <title>Audit Results</title>
+
+    <link href="https://fonts.googleapis.com/css?family=Faster+One" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="jquery.dataTables.min.css">
+
+
+     <!-- script loader -->
+    <script src="jquery-3.3.1.js"></script>
+    <script src="jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.19/js/dataTables.material.min.js"></script>
+    
+  </head>
+
+  <body>
+ 
+      <header>
+
+      </header>
+
+      <section>
+
+      </section>
+
+    </table>
+    <table id="excelDataTable"> </table>
+    <br><br>
+    <table id="excelDataTable2"> </table>
+    <br><br><br>
+
+    <table id="excelDataTable3"> </table>
+    <br><br>
+
+    <script>
+    var header = document.querySelector('header');
+    var section = document.querySelector('section');
+
+    // var requestURL = 'https://mdn.github.io/learning-area/javascript/oojs/json/superheroes.json';
+    var requestURL = 'https://s3.amazonaws.com/qsp-protocol-reports-dev/d614a6ae-aac6-480e-af3c-eb59dae1f046.json';
+    var request = new XMLHttpRequest();
+    request.open('GET', requestURL);
+    request.responseType = 'text';
+    request.send();
+
+    request.onload = function() {
+      var superHeroesText = request.response;
+      var superHeroes = JSON.parse(superHeroesText);
+      populateHeader(superHeroes);
+      showReports(superHeroes);
+
+      // $(document).ready(function() {$('#example').DataTable();} );
+      // $(document).ready(function() {$('#excelDataTable2').DataTable();} );
+
+    }
+
+    function populateHeader(jsonObj) {
+      var myH1 = document.createElement('h1');
+      myH1.textContent = "Results";
+      header.appendChild(myH1);
+
+      var requestor = document.createElement('p');
+      var auditor = document.createElement('p');
+
+      requestor.textContent = 'requestor: ' + jsonObj['requestor'];
+      auditor.textContent = 'auditor: ' + jsonObj['auditor'];
+      header.appendChild(requestor);
+      header.appendChild(auditor);
+    }
+
+    function getAllVuls(analyzers_reports) {
+      var vuls = [];
+      
+      // 2 reports total, oyenta and mythril
+      for(var i = 0; i < analyzers_reports.length; i++) {
+        var analyzer = analyzers_reports[i].analyzer;
+        var allVulnerabilities = analyzer.vulnerabilities_checked; 
+
+        for(var j = 0; j < allVulnerabilities.length; j++) {
+          vuls.push(allVulnerabilities[j]);
+        }
+      }
+      return Array.from(new Set(vuls));
+    }
+
+    function getReportNames(analyzers_reports) {
+      var names = [];
+      for(var i = 0; i < analyzers_reports.length; i++) {
+        var name = analyzers_reports[i].analyzer.name;
+        names.push(name);
+      }
+      return names;
+    }
+
+    function getPotentialVuls(analyzers_reports) {
+      var result = []
+      var potentialVuls = analyzers_reports.potential_vulnerabilities;
+      var count = analyzers_reports.count_potential_vulnerabilities;
+      for (var i = 0; i < count; i++) {
+        var type = potentialVuls[i].type;
+        if (type==null) {
+          var name = potentialVuls[i].name;
+          result.push(name);
+        } else {
+        result.push(type);
+        }
+      }
+      return result;
+    }
+
+    function addHeadersToTable(reportNames){
+      var headerTr$ = $('<tr/>');
+      headerTr$.append($('<th/>').html("vulnerability"));
+
+      for (var i = 0 ; i < reportNames.length ; i++) {
+        headerTr$.append($('<th/>').html(reportNames[i]));
+      }
+      $("#excelDataTable2").append(headerTr$);
+    }
+
+    function addTable(reportNames, allVuls, vulsCheckedMap, potVulsMap) {
+      addHeadersToTable(reportNames);
+
+      for (var i = 0 ; i < allVuls.length; i++) {
+        var row$ = $('<tr/>');
+        for (var colIndex = 0 ; colIndex < 3 ; colIndex++) {
+          if (colIndex == 0) {
+                 cellValue = allVuls[i]; 
+                 row$.append($('<td/>').html(cellValue));
+          } else {
+            for (colIndex = 0; colIndex < reportNames.length; colIndex++) {
+              var reportName = reportNames[colIndex];
+              var thisIndex = reportNames.indexOf(reportName);
+              var potVuls = potVulsMap[reportName];
+              if (potVuls.includes(allVuls[i]) && thisIndex==colIndex) {
+                 cellValue = "failure";
+                 console.log(thisIndex, reportName, allVuls[i]);
+              } else {
+                cellValue = "n/a";
+              }
+              row$.append($('<td/>').html(cellValue));
+            }
+          }
+        }
+          $("#excelDataTable2").append(row$);  
+      }
+    }
+
+    function addTable2(reportNames, thisReportName, allVuls, potVuls, thisReportVuls) {
+        // adds column names
+        var headerTr$ = $('<tr/>');
+        headerTr$.append($('<th/>').html("vulnerability"));
+
+        var thisIndex = reportNames.indexOf(thisReportName);
+        console.log("colindex" + thisIndex);
+ 
+        for (var i = 0 ; i < reportNames.length ; i++) {
+          headerTr$.append($('<th/>').html(thisReportName));
+        }
+        $("#excelDataTable2").append(headerTr$);
+
+        for (var i = 0 ; i < allVuls.length; i++) {
+           var row$ = $('<tr/>');
+           for (var colIndex = 0 ; colIndex < 3 ; colIndex++) {
+               if (colIndex == 0) {
+                 cellValue = allVuls[i]; 
+               } else if (potVuls.includes(allVuls[i])) {
+                 cellValue = "failure";
+               } else if (thisReportVuls.includes(allVuls[i]) && thisIndex+1==colIndex) {
+                 cellValue = "success";
+               } else {
+                 cellValue = "n/a";
+               } 
+   
+               row$.append($('<td/>').html(cellValue));
+           }
+           $("#excelDataTable2").append(row$);
+       }
+    }
+
+    function createEmptyTable(allVuls) {
+      var headerTr$ = $('<tr/>');
+      headerTr$.append($('<th/>').html("vulnerability"));
+      $("#excelDataTable3").append(headerTr$);
+      for (var i = 0 ; i < allVuls.length; i++) {
+        var row$ = $('<tr/>');
+        cellValue = allVuls[i]; 
+        row$.append($('<td/>').html(cellValue));
+        $("#excelDataTable3").append(row$);
+      }
+      return $("#excelDataTable3");
+    }
+
+    function append(existingTable) {
+      $("#excelDataTable3 tr").each(function(){
+        $(this).append("<td>test</td>");
+        })       
+    }
+
+    function showReports(jsonObj) {
+      var analyzers_reports = jsonObj['analyzers_reports'];
+
+      var allVuls = getAllVuls(analyzers_reports);
+      var reportNames = getReportNames(analyzers_reports);
+      var table = createEmptyTable(allVuls);
+      var vulsCheckedMap = {}
+      var potVulsMap = {};
+
+      for(var i = 0; i < analyzers_reports.length; i++) {
+        var thisReport = analyzers_reports[i];
+        var analyzer = thisReport.analyzer;
+        vulsCheckedMap[analyzer.name]=analyzer.vulnerabilities_checked;
+        potVulsMap[analyzer.name]=getPotentialVuls(thisReport);
+      }
+      console.log(vulsCheckedMap);
+      console.log(potVulsMap);
+
+      addTable(reportNames, allVuls, vulsCheckedMap, potVulsMap);
+    }
+    </script>
+
+
+  </body>
+</html>
