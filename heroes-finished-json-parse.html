@@ -7,12 +7,12 @@
 
     <link href="https://fonts.googleapis.com/css?family=Faster+One" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.19/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="jquery.dataTables.min.css">
 
 
      <!-- script loader -->
-    <script src="https://code.jquery.com/jquery-3.3.1.js"></script>
-    <script src="https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"></script>
+    <script src="jquery-3.3.1.js"></script>
+    <script src="jquery.dataTables.min.js"></script>
   </head>
 
   <body>
@@ -198,7 +198,7 @@
       buildHtmlTable();
 
       // $(document).ready(function() {$('#example').DataTable();} );
-      $(document).ready(function() {$('#excelDataTable2').DataTable();} );
+      // $(document).ready(function() {$('#excelDataTable').DataTable();} );
 
 
     }
@@ -238,39 +238,25 @@
       return names;
     }
 
-    function showReports(jsonObj) {
-      var analyzers_reports = jsonObj['analyzers_reports'];
-
-      var allVuls = getAllVuls(analyzers_reports)
-      console.log(allVuls)
-
-      var reportNames = getReportNames(analyzers_reports)
-
-      for(var i = 0; i < analyzers_reports.length; i++) {
-        //create container elements based on style.css styles
-        var myArticle = document.createElement('article');
-        var myH2 = document.createElement('h2');
-        var myPara1 = document.createElement('p');
-        var myPara2 = document.createElement('p');
-        var myPara3 = document.createElement('p');
-        var myList = document.createElement('ul');
-
-        var analyzer = analyzers_reports[i].analyzer;
-
-        myH2.textContent = analyzer.name;
-        myPara1.textContent = 'Se8cret identity: ' + analyzer.status;
-        myPara2.textContent = 'Status: ' + analyzers_reports[i].status;
-        myPara3.textContent = 'Superpowers:';
-
-        var allVulnerabilities = analyzer.vulnerabilities_checked; 
-
-        for(var j = 0; j < allVulnerabilities.length; j++) {
-          var listItem = document.createElement('li');
-          listItem.textContent = allVulnerabilities[j];
-          myList.appendChild(listItem);
+    function getPotentialVuls(analyzers_reports) {
+      var names = []
+      var potentialVuls = analyzers_reports.potential_vulnerabilities;
+      var count = analyzers_reports.count_potential_vulnerabilities;
+      console.log(count);
+      for (var i = 0; i < count; i++) {
+        var type = potentialVuls[i].type;
+        if (type==null) {
+          var name = potentialVuls[i].name;
+          names.push(name);
+        } else {
+        names.push(type);
         }
+      }
+      return names;
+    }
 
-        // adds column names
+    function addTable(reportNames, allVuls, potVuls, thisReportVuls) {
+      // adds column names
         var headerTr$ = $('<tr/>');
         headerTr$.append($('<th/>').html("vulnerability"));
  
@@ -285,15 +271,54 @@
            for (var colIndex = 0 ; colIndex < reportNames.length+1 ; colIndex++) {
                if (colIndex == 0) {
                  cellValue = allVuls[i]; 
+               } else if (potVuls.includes(allVuls[i])) {
+                 cellValue = "failure";
+               } else if (thisReportVuls.includes(allVuls[i])) {
+                 cellValue = "success";
                } else {
-                 cellValue = "Success!";
+                 cellValue = "n/a";
                } 
    
                row$.append($('<td/>').html(cellValue));
            }
            $("#excelDataTable2").append(row$);
        }
+    }
 
+    function showReports(jsonObj) {
+      var analyzers_reports = jsonObj['analyzers_reports'];
+
+      var allVuls = getAllVuls(analyzers_reports)
+      var reportNames = getReportNames(analyzers_reports)
+
+      for(var i = 0; i < analyzers_reports.length; i++) {
+        //create container elements based on style.css styles
+
+        var thisReport = analyzers_reports[i];
+
+        var myArticle = document.createElement('article');
+        var myH2 = document.createElement('h2');
+        var myPara1 = document.createElement('p');
+        var myPara2 = document.createElement('p');
+        var myPara3 = document.createElement('p');
+        var myList = document.createElement('ul');
+
+        var analyzer = thisReport.analyzer;
+        var potVuls = getPotentialVuls(thisReport);
+        console.log(potVuls);
+
+        myH2.textContent = analyzer.name;
+        myPara1.textContent = 'Se8cret identity: ' + thisReport.status;
+        myPara2.textContent = 'Status: ' + thisReport.status;
+        myPara3.textContent = 'Superpowers:';
+
+        var thisReportVuls = analyzer.vulnerabilities_checked; 
+
+        for(var j = 0; j < thisReportVuls.length; j++) {
+          var listItem = document.createElement('li');
+          listItem.textContent = thisReportVuls[j];
+          myList.appendChild(listItem);
+        }
 
         myArticle.appendChild(myH2);
         myArticle.appendChild(myPara1);
@@ -302,6 +327,8 @@
         myArticle.appendChild(myList);
 
         section.appendChild(myArticle);
+
+        addTable(reportNames, allVuls, potVuls, thisReportVuls);
 
       }
     }
