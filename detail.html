@@ -24,12 +24,9 @@
       <table id="summaryTable" class="cell-border"> </table>
     </p>
 
-    <p>
-    <table id="detailTable" class="cell-border"> </table>
-    </p>
-
     <script>
     var header = document.querySelector('header');
+    var body = document.querySelector('body');
     var section = document.querySelector('section');
 
     var requestURL = 'https://s3.amazonaws.com/qsp-protocol-reports-dev/d614a6ae-aac6-480e-af3c-eb59dae1f046.json';
@@ -162,31 +159,11 @@
       }
     }
 
-    function createEmptyTable(allVuls) {
-      var headerTr$ = $('<tr/>');
-      headerTr$.append($('<th/>').html("vulnerability"));
-      $("#excelDataTable3").append(headerTr$);
-      for (var i = 0 ; i < allVuls.length; i++) {
-        var row$ = $('<tr/>');
-        cellValue = allVuls[i]; 
-        row$.append($('<td/>').html(cellValue));
-        $("#excelDataTable3").append(row$);
-      }
-      return $("#excelDataTable3");
-    }
-
-    function addHeadersToDetailTable(){
-      var headers = ["Datasource", "Vulnerability Name", "Description", "Type", "File", "Contract", "Description", "Affected Line Number"];
-      var headerTr$ = $('<tr/>');
-
-      for (var i = 0 ; i < headers.length ; i++) {
-        headerTr$.append($('<th/>').html(headers[i]));
-      }
-      $("#detailTable").append(headerTr$);
-    }
-
     function addDetailTable(analyzers_reports) {
-      addHeadersToDetailTable();
+      var detailHeading = document.createElement('h2');
+      detailHeading.textContent = "More details about potential vulnerabilities: ";
+      body.append(detailHeading);
+      
       for(var reportId = 0; reportId < analyzers_reports.length; reportId++) {
         var thisReport = analyzers_reports[reportId];
         var thisReportName = thisReport.analyzer.name;
@@ -201,13 +178,17 @@
           var file = elem.file;
           var contract = elem.contract;
           var desc = elem.description;
-        
-          for(var instanceId=0; instanceId < elem.instances.length; instanceId++) {
-            startLines.push(elem.instances[instanceId].start_line);
-          }
+
           console.log(thisReportName, name, type, file, contract, desc, startLines[id]);
-        }
+
+          var detailBody = document.createElement('p');
+          detailBody.textContent = 'ReportName: ' + thisReportName + ', name: ' + name + ', type: ' + type + ', file: ' + file + ', contract: ' + contract + ', description: ' + desc + ', on start line: ' + startLines[id];
+
+          body.append(detailBody);
+
+        } 
       }
+
     }
 
     function showReports(jsonObj) {
