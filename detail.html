@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+
+    <title>Audit Results</title>
+
+    <link href="https://fonts.googleapis.com/css?family=Faster+One" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.19/css/jquery.dataTables.min.css">
+
+     <!-- scripts -->
+    <script src="https://code.jquery.com/jquery-3.3.1.js"></script>
+    <script src="https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"></script>
+    <!-- <script src="https://cdn.datatables.net/1.10.19/js/dataTables.uikit.min.js"></script> -->
+    
+  </head>
+
+  <body>
+ 
+    <header>
+    </header>
+    <p> 
+      <table id="summaryTable" class="cell-border"> </table>
+    </p>
+
+    <p>
+    <table id="detailTable" class="cell-border"> </table>
+    </p>
+
+    <script>
+    var header = document.querySelector('header');
+    var section = document.querySelector('section');
+
+    var requestURL = 'https://s3.amazonaws.com/qsp-protocol-reports-dev/d614a6ae-aac6-480e-af3c-eb59dae1f046.json';
+    var request = new XMLHttpRequest();
+    request.open('GET', requestURL);
+    request.responseType = 'text';
+    request.send();
+
+    request.onload = function() {
+      var superHeroesText = request.response;
+      var superHeroes = JSON.parse(superHeroesText);
+      populateHeader(superHeroes);
+      showReports(superHeroes);
+
+      $(document).ready(function() {$('#summaryTable').DataTable();} );
+      // $(document).ready(function() {$('#excelDataTable2').DataTable();} );
+
+      colorTable();
+    }
+
+    function populateHeader(jsonObj) {
+      var myH1 = document.createElement('h1');
+      myH1.textContent = "Audit Results";
+      header.appendChild(myH1);
+
+      var requestor = document.createElement('p');
+      var auditor = document.createElement('p');
+      var uri = document.createElement('p');
+      var hash = document.createElement('p');
+
+
+      requestor.textContent = 'Requestor Address: ' + jsonObj['requestor'];
+      auditor.textContent = 'Auditor Address: ' + jsonObj['auditor'];
+      uri.textContent = 'Contract URI: ' + jsonObj['contract_uri'];
+      hash.textContent = 'Contract Hash: ' + jsonObj['contract_hash'];
+
+
+      header.append(requestor, auditor, uri, hash);
+    }
+
+    function getAllVuls(analyzers_reports) {
+      var vuls = [];
+      
+      // 2 reports total, oyenta and mythril
+      for(var i = 0; i < analyzers_reports.length; i++) {
+        var analyzer = analyzers_reports[i].analyzer;
+        var allVulnerabilities = analyzer.vulnerabilities_checked; 
+
+        for(var j = 0; j < allVulnerabilities.length; j++) {
+          vuls.push(allVulnerabilities[j]);
+        }
+      }
+      return Array.from(new Set(vuls));
+    }
+
+    function getReportNames(analyzers_reports) {
+      var names = [];
+      for(var i = 0; i < analyzers_reports.length; i++) {
+        var name = analyzers_reports[i].analyzer.name;
+        names.push(name);
+      }
+      return names;
+    }
+
+    function getPotentialVuls(analyzers_reports) {
+      var result = []
+      var potentialVuls = analyzers_reports.potential_vulnerabilities;
+      var count = analyzers_reports.count_potential_vulnerabilities;
+      for (var i = 0; i < count; i++) {
+        var type = potentialVuls[i].type;
+        if (type==null) {
+          var name = potentialVuls[i].name;
+          result.push(name);
+        } else {
+        result.push(type);
+        }
+      }
+      return result;
+    }
+
+    function addHeadersToTable(reportNames){
+      var headerTr$ = $('<tr/>');
+      headerTr$.append($('<th/>').html("vulnerability"));
+
+      for (var i = 0 ; i < reportNames.length ; i++) {
+        headerTr$.append($('<th/>').html(reportNames[i]));
+      }
+      $("#summaryTable").append(headerTr$);
+    }
+
+    function colorTable() {
+      var tds = $('#summaryTable td');
+      for (var i = 0; i < tds.length; i++) {
+        var cell = tds[i]
+        if (cell.innerText == "Success") {
+          $(cell).attr('class', 'green');
+        } else if (cell.innerText == "Failure") {
+          $(cell).attr('class', 'red');
+        }
+      }
+    }
+    
+    function addSummaryTable(reportNames, allVuls, vulsCheckedMap, potVulsMap) {
+      addHeadersToTable(reportNames);
+
+      for (var i = 0 ; i < allVuls.length; i++) {
+        var row$ = $('<tr/>');
+        for (var colIndex = 0 ; colIndex < 3 ; colIndex++) {
+          if (colIndex == 0) {
+                 cellValue = allVuls[i]; 
+                 row$.append($('<td/>').html(cellValue));
+          } else {
+            for (colIndex = 0; colIndex < reportNames.length; colIndex++) {
+              var reportName = reportNames[colIndex];
+              var thisIndex = reportNames.indexOf(reportName);
+              var potVuls = potVulsMap[reportName];
+              var checkedVuls = vulsCheckedMap[reportName];
+              if (potVuls.includes(allVuls[i]) && thisIndex==colIndex) {
+                 cellValue = "Failure";
+              } else if (checkedVuls.includes(allVuls[i]) && thisIndex==colIndex) {
+                 cellValue = "Success";
+              } else {
+                cellValue = "Not Tested";
+              }
+              row$.append($('<td/>').html(cellValue));
+            }
+          }
+        }
+          $("#summaryTable").append(row$);  
+      }
+    }
+
+    function createEmptyTable(allVuls) {
+      var headerTr$ = $('<tr/>');
+      headerTr$.append($('<th/>').html("vulnerability"));
+      $("#excelDataTable3").append(headerTr$);
+      for (var i = 0 ; i < allVuls.length; i++) {
+        var row$ = $('<tr/>');
+        cellValue = allVuls[i]; 
+        row$.append($('<td/>').html(cellValue));
+        $("#excelDataTable3").append(row$);
+      }
+      return $("#excelDataTable3");
+    }
+
+    function addHeadersToDetailTable(){
+      var headers = ["Datasource", "Vulnerability Name", "Description", "Type", "File", "Contract", "Description", "Affected Line Number"];
+      var headerTr$ = $('<tr/>');
+
+      for (var i = 0 ; i < headers.length ; i++) {
+        headerTr$.append($('<th/>').html(headers[i]));
+      }
+      $("#detailTable").append(headerTr$);
+    }
+
+    function addDetailTable(analyzers_reports) {
+      addHeadersToDetailTable();
+      for(var reportId = 0; reportId < analyzers_reports.length; reportId++) {
+        var thisReport = analyzers_reports[reportId];
+        var thisReportName = thisReport.analyzer.name;
+        var detailCount = thisReport.count_potential_vulnerabilities;
+        var potentialVuls = thisReport.potential_vulnerabilities;
+
+        var startLines = [];
+        for(var id = 0; id < detailCount; id++) {
+          var elem = potentialVuls[id];
+          var name = elem.name;
+          var type = elem.type;
+          var file = elem.file;
+          var contract = elem.contract;
+          var desc = elem.description;
+        
+          for(var instanceId=0; instanceId < elem.instances.length; instanceId++) {
+            startLines.push(elem.instances[instanceId].start_line);
+          }
+          console.log(thisReportName, name, type, file, contract, desc, startLines[id]);
+        }
+      }
+    }
+
+    function showReports(jsonObj) {
+      var analyzers_reports = jsonObj['analyzers_reports'];
+
+      var allVuls = getAllVuls(analyzers_reports);
+      var reportNames = getReportNames(analyzers_reports);
+      var vulsCheckedMap = {};
+      var potVulsMap = {};
+
+      for(var i = 0; i < analyzers_reports.length; i++) {
+        var thisReport = analyzers_reports[i];
+        var analyzer = thisReport.analyzer;
+        vulsCheckedMap[analyzer.name]=analyzer.vulnerabilities_checked;
+        potVulsMap[analyzer.name]=getPotentialVuls(thisReport);
+      }
+      addSummaryTable(reportNames, allVuls, vulsCheckedMap, potVulsMap);
+
+      addDetailTable(analyzers_reports);
+    }
+    </script>
+
+
+  </body>
+</html>
